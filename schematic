@@ -1,0 +1,157 @@
+# ============================================================
+# CHEESBURGER II Schematic Generator
+#
+# Reads machinecode.txt and generates a WorldEdit schematic.
+#
+# Requires:
+#     pip install mcschematic
+#
+# ============================================================
+
+import mcschematic
+import os
+
+# ------------------------------------------------------------
+# Configuration
+# ------------------------------------------------------------
+
+INPUT_FILE = "C:/Users/10jrb/machinecode.txt.txt"
+
+OUTPUT_FOLDER = "output"
+OUTPUT_NAME = "program"
+
+BLOCK_ZERO = "minecraft:red_wool"
+BLOCK_ONE = "minecraft:repeater[facing=east]"
+
+MC_VERSION = mcschematic.Version.JE_1_21_1
+
+# ------------------------------------------------------------
+
+
+schem = mcschematic.MCSchematic()
+
+instruction_count = 0
+ones = 0
+zeros = 0
+
+
+def place_byte(byte_string, x, z, start_y, repeater_block):
+    """
+    Places one byte vertically.
+
+    Bit 0 (MSB) is at the top.
+    """
+
+    global ones
+    global zeros
+
+    for bit in range(8):
+
+        y = start_y - bit * 2
+
+        if byte_string[bit] == "1":
+            schem.setBlock((x, y, z), repeater_block)
+            ones += 1
+        else:
+            schem.setBlock((x, y, z), BLOCK_ZERO)
+            zeros += 1
+
+
+with open(INPUT_FILE) as f:
+
+    for line_number, line in enumerate(f, start=1):
+
+        instruction = line.strip()
+
+        if instruction == "":
+            continue
+
+        # ------------------------------
+        # Validation
+        # ------------------------------
+
+        if len(instruction) != 16:
+            raise Exception(
+                f"Line {line_number}: "
+                f"Expected 16 bits, got {len(instruction)}."
+            )
+
+        if any(c not in "01" for c in instruction):
+            raise Exception(
+                f"Line {line_number}: "
+                "Instruction contains characters other than 0 and 1."
+            )
+
+        # ------------------------------
+        # Compute instruction position
+        # ------------------------------
+
+        # Determine which half of instruction memory we're in
+        half = instruction_count // 512      # 0 for instructions 0-511, 1 for 512-1023
+
+        if half == 0:
+            repeater_block = "minecraft:repeater[facing=east]"
+        else:
+            repeater_block = "minecraft:repeater[facing=west]"
+            
+        # Instruction number within that half
+        local_instruction = instruction_count % 512
+
+        column = local_instruction % 16
+        bank = local_instruction // 16
+
+        # Base coordinates
+        x = -7 * column
+
+        # Base Z position
+        z = bank * 2 + (column % 2)
+
+        # Add center routing gap
+        if (256 <= instruction_count <= 511) or (768 <= instruction_count <= 1023):
+            if instruction_count % 2 == 0:
+                # Even instruction numbers (odd rows)
+                z += 4
+            elif (256 <= instruction_count <= 511) or (768 <= instruction_count <= 1023):
+                if instruction_count % 2 == 1:
+                    # Odd instruction numbers (even rows)
+                    z += 2
+
+        # Shift second half 2 blocks west
+        x -= half * 2
+
+
+        # Split into bytes
+
+        byte1 = instruction[:8]
+        byte2 = instruction[8:]
+
+        # Place bytes
+
+        place_byte(byte1, x, z, -2, repeater_block)
+        place_byte(byte2, x, z, -20, repeater_block)
+
+        instruction_count += 1
+
+
+# ------------------------------------------------------------
+# Save schematic
+# ------------------------------------------------------------
+
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+schem.save(
+    OUTPUT_FOLDER,
+    OUTPUT_NAME,
+    MC_VERSION
+)
+
+print("--------------------------------------")
+print("CHEESBURGER II Schematic Generator")
+print("--------------------------------------")
+print(f"Instructions : {instruction_count}")
+print(f"Repeaters    : {ones}")
+print(f"Red Wool     : {zeros}")
+print()
+print(f"Saved to: {OUTPUT_FOLDER}/{OUTPUT_NAME}.schem")
+
+
