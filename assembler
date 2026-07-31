@@ -1,0 +1,204 @@
+# CHEESBURGER II Assembler v2.0
+#
+# Converts CHEESBURGER II assembly into 16-bit binary machine code.
+#
+# Output format:
+# 0001100101001000
+# 1000010101111111
+#
+# One instruction per line.
+
+
+OPCODES = {
+    "NOP": ("00000", "NONE"),
+    "IA":  ("00001", "RA"),
+    "IB":  ("00010", "RB"),
+    "ADD": ("00011", "RRR"),
+    "SUB": ("00100", "RRR"),
+    "XOR": ("00101", "RRR"),
+    "XNOR":("00110", "RRR"),
+    "OR":  ("00111", "RRR"),
+    "NOR": ("01000", "RRR"),
+    "AND": ("01001", "RRR"),
+    "NAND":("01010", "RRR"),
+    "RSH": ("01011", "RRR"),
+    "MLT": ("01100", "RRR"),
+    "DIV": ("01101", "RRR"),
+    "MOD": ("01110", "RRR"),
+    "SQRT":("01111", "RA"),
+
+    "LDI": ("10000", "RI"),
+    "ADI": ("10001", "RI"),
+
+    "JMP": ("10010", "ADDR"),
+    "BIZ": ("10011", "ADDR"),
+    "BNZ": ("10100", "ADDR"),
+    "BIC": ("10101", "ADDR"),
+    "BNC": ("10110", "ADDR"),
+    "CAL": ("10111", "ADDR"),
+    "RTN": ("11000", "NONE"),
+
+    "STR": ("11001", "RRAM"),
+    "LOD": ("11010", "RRAM"),
+
+    "PST": ("11011", "RPORT"),
+    "PLD": ("11100", "RPORT"),
+
+    "HLT": ("11101", "NONE")
+}
+
+
+def reg(bits):
+    if not bits.lower().startswith("r"):
+        raise Exception("Expected register")
+
+    n = int(bits[1:])
+
+    if n < 0 or n > 7:
+        raise Exception("Register out of range")
+
+    return format(n, "03b")
+
+
+def ram(bits):
+    if not bits.lower().startswith("r"):
+        raise Exception("Expected RAM register")
+
+    n = int(bits[1:])
+
+    if n < 0 or n > 255:
+        raise Exception("RAM register out of range")
+
+    return format(n, "08b")
+
+
+def port(bits):
+    if not bits.lower().startswith("p"):
+        raise Exception("Expected port")
+
+    n = int(bits[1:])
+
+    if n < 0 or n > 7:
+        raise Exception("Port out of range")
+
+    return format(n, "03b")
+
+
+def imm(bits):
+    n = int(bits)
+
+    if n < 0 or n > 255:
+        raise Exception("Immediate out of range")
+
+    return format(n, "08b")
+
+
+def addr(bits):
+    n = int(bits)
+
+    if n < 0 or n > 1023:
+        raise Exception("Address out of range")
+
+    return format(n, "010b")
+
+
+def assemble(line):
+
+    line = line.split(";")[0].strip()
+
+    if line == "":
+        return None
+
+    parts = line.replace(",", " ").split()
+
+    mnemonic = parts[0].upper()
+
+    if mnemonic not in OPCODES:
+        raise Exception(f"Unknown instruction {mnemonic}")
+
+    opcode, fmt = OPCODES[mnemonic]
+
+    if fmt == "NONE":
+        operands = "00000000000"
+
+    elif fmt == "RA":
+
+        a = reg(parts[1])
+
+        operands = "000" + a + "00000"
+
+    elif fmt == "RB":
+
+        b = reg(parts[1])
+
+        operands = "000000" + b + "00"
+
+    elif fmt == "RRR":
+
+        a = reg(parts[1])
+        b = reg(parts[2])
+        d = reg(parts[3])
+
+        operands = a + b + d + "00"
+
+    elif fmt == "RI":
+
+        r = reg(parts[1])
+
+        operands = r + imm(parts[2])
+
+    elif fmt == "ADDR":
+
+        operands = addr(parts[1]) + "0"
+
+    elif fmt == "RRAM":
+
+        r = reg(parts[1])
+
+        operands = r + ram(parts[2])
+
+    elif fmt == "RPORT":
+
+        r = reg(parts[1])
+        p = port(parts[2])
+
+        operands = r + p + "00000"
+
+    else:
+        raise Exception("Unknown format")
+
+    return opcode + operands
+
+
+def main():
+
+    infile = input("Assembly file: ")
+
+    outfile = "machinecode.txt"
+
+    output = []
+
+    with open(infile) as f:
+
+        for line_num, line in enumerate(f, start=1):
+
+            try:
+                code = assemble(line)
+
+                if code is not None:
+                    output.append(code)
+
+            except Exception as e:
+                print(f"Line {line_num}: {e}")
+                return
+
+    with open(outfile, "w") as f:
+
+        for line in output:
+            f.write(line + "\n")
+
+    print(f"Done! Wrote {len(output)} instructions to {outfile}")
+
+
+if __name__ == "__main__":
+    main()
