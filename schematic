@@ -20,7 +20,7 @@ INPUT_FILE = "C:/Users/10jrb/machinecode.txt.txt"
 OUTPUT_FOLDER = "output"
 OUTPUT_NAME = "program"
 
-BLOCK_ZERO = "minecraft:red_wool"
+BLOCK_ZERO = "minecraft:lime_wool"
 BLOCK_ONE = "minecraft:repeater[facing=east]"
 
 MC_VERSION = mcschematic.Version.JE_1_21_1
