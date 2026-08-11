@@ -15,7 +15,7 @@ import os
 # Configuration
 # ------------------------------------------------------------
 
-INPUT_FILE = "C:/Users/10jrb/machinecode.txt.txt"
+INPUT_FILE = "C:/Users/10jrb/machinecode.txt"
 
 OUTPUT_FOLDER = "output"
 OUTPUT_NAME = "program"
