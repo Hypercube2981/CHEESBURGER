@@ -153,5 +153,3 @@ print(f"Repeaters    : {ones}")
 print(f"Red Wool     : {zeros}")
 print()
 print(f"Saved to: {OUTPUT_FOLDER}/{OUTPUT_NAME}.schem")
-
-
