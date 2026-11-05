@@ -50,6 +50,7 @@ You'll know when you find it because it has the only button in the entire CPU. b
 To do this, just flick the lever on the write wool near the clock, leave it on for 5 or 6 seconds, and then turn it back off. Wait about 10 seconds and then press the button to start the clock.
 If your program is bugged and you need to manually halt it, just break one of the dust in the clock, wait for the clock to stop and replace it.
 You are definitely going to want to speed up the tick rate with the /tick command. If you are running a particularly hefty program, I recommend running it on MCHPRS.
+It is important to note that the CPU is most likely not bug free. Just keep that in mind while programing if you run into any issues.
 
 I know I didn't exactly make it user friendly, but I am going to assume it is not a big deal because I doubt anyone who has already made it this far is not a comp sci nerd.
 
@@ -60,3 +61,5 @@ Anyway, here is a link to the instruction set (google sheets) and the world down
 https://docs.google.com/spreadsheets/d/1CerGGBZtiVhNQj9SbhYAk6pjdfWSGLXxFflY5m38QGQ/edit?pli=1&gid=0#gid=0
 
 https://drive.google.com/file/d/1IH2JYcOXePGWOcgDpfV0uX8qRNkSnIfP/view?usp=sharing
+
+If you cannot open these links or download the world, please net me now in the comment section of my YouTube video and I will try to get it fixed. This is my first time doing anything like this.
