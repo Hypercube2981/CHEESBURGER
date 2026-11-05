@@ -1,12 +1,14 @@
-# CHEESBURGER II Assembler v2.0
+# CHEESBURGER III Assembler v3.0
 #
-# Converts CHEESBURGER II assembly into 16-bit binary machine code.
+# Converts CHEESBURGER III assembly into 16-bit binary machine code.
+# Automatically inserts a startup NOP and supports labels for jumps,
+# branches, and calls.
 #
-# Output format:
-# 0001100101001000
-# 1000010101111111
-#
-# One instruction per line.
+# Numeric branch/call addresses are still supported. Since the assembler
+# inserts a NOP at address 0, numeric addresses are automatically increased
+# by 1. Label addresses already account for the inserted NOP.
+
+import re
 
 
 OPCODES = {
@@ -26,7 +28,8 @@ OPCODES = {
     "MTL": ("01101", "RRR"),
     "DIV": ("01110", "RRR"),
     "MOD": ("01111", "RRR"),
-    "SQRT":("10000", "RA"),
+
+    "SQRT":("10000", "RAD"),
 
     "LDI": ("10001", "RI"),
     "ADI": ("10010", "RI"),
@@ -48,13 +51,17 @@ OPCODES = {
     "HLT": ("11110", "NONE")
 }
 
+# Accept CALL as a more readable alias for the existing CAL opcode.
+MNEMONIC_ALIASES = {
+    "CALL": "CAL"
+}
+
 
 def reg(bits):
     if not bits.lower().startswith("r"):
         raise Exception("Expected register")
 
     n = int(bits[1:])
-
     if n < 0 or n > 7:
         raise Exception("Register out of range")
 
@@ -66,7 +73,6 @@ def ram(bits):
         raise Exception("Expected RAM register")
 
     n = int(bits[1:])
-
     if n < 0 or n > 255:
         raise Exception("RAM register out of range")
 
@@ -78,7 +84,6 @@ def port(bits):
         raise Exception("Expected port")
 
     n = int(bits[1:])
-
     if n < 0 or n > 7:
         raise Exception("Port out of range")
 
@@ -87,32 +92,55 @@ def port(bits):
 
 def imm(bits):
     n = int(bits)
-
     if n < 0 or n > 255:
         raise Exception("Immediate out of range")
 
     return format(n, "08b")
 
 
-def addr(bits):
-    n = int(bits)
-
+def addr(n):
+    n = int(n)
     if n < 0 or n > 1023:
         raise Exception("Address out of range")
 
     return format(n, "010b")
 
 
-def assemble(line):
-
+def parse_source_line(line):
+    """Return (label, instruction_parts), ignoring comments and blank lines."""
     line = line.split(";")[0].strip()
-
-    if line == "":
-        return None
+    if not line:
+        return None, None
 
     parts = line.replace(",", " ").split()
+    label = None
 
-    mnemonic = parts[0].upper()
+    # A declaration is a leading token such as ".fib", optionally followed
+    # by an instruction on the same line.
+    if parts[0].startswith("."):
+        label = parts.pop(0)[1:]
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", label):
+            raise Exception(f"Invalid label name: .{label}")
+
+    if not parts:
+        return label, None
+
+    # References use the requested form CALL.fib, BIZ.rtn, JMP.again.
+    # Convert the suffix into an ordinary target operand for assembly.
+    if "." in parts[0]:
+        mnemonic, target = parts[0].split(".", 1)
+        if not mnemonic or not target:
+            raise Exception(f"Invalid label reference: {parts[0]}")
+        parts = [mnemonic, target] + parts[1:]
+
+    parts[0] = parts[0].upper()
+    parts[0] = MNEMONIC_ALIASES.get(parts[0], parts[0])
+
+    return label, parts
+
+
+def assemble_parts(parts, labels, line_num):
+    mnemonic = parts[0]
 
     if mnemonic not in OPCODES:
         raise Exception(f"Unknown instruction {mnemonic}")
@@ -120,85 +148,129 @@ def assemble(line):
     opcode, fmt = OPCODES[mnemonic]
 
     if fmt == "NONE":
+        if len(parts) != 1:
+            raise Exception(f"{mnemonic} takes no operands")
         operands = "00000000000"
 
     elif fmt == "RA":
-
+        if len(parts) != 2:
+            raise Exception(f"{mnemonic} expects 1 operand")
         a = reg(parts[1])
-
         operands = "000" + a + "00000"
 
+    elif fmt == "RAD":
+        if len(parts) != 3:
+            raise Exception(f"{mnemonic} expects 2 operands")
+        a = reg(parts[1])
+        d = reg(parts[2])
+        operands = a + "000" + d + "00"
+
     elif fmt == "RB":
-
+        if len(parts) != 2:
+            raise Exception(f"{mnemonic} expects 1 operand")
         b = reg(parts[1])
-
         operands = "000000" + b + "00"
 
     elif fmt == "RRR":
-
+        if len(parts) != 4:
+            raise Exception(f"{mnemonic} expects 3 operands")
         a = reg(parts[1])
         b = reg(parts[2])
         d = reg(parts[3])
-
         operands = a + b + d + "00"
 
     elif fmt == "RI":
-
+        if len(parts) != 3:
+            raise Exception(f"{mnemonic} expects 2 operands")
         r = reg(parts[1])
-
         operands = r + imm(parts[2])
 
     elif fmt == "ADDR":
+        if len(parts) != 2:
+            raise Exception(f"{mnemonic} expects 1 address or label")
+        target = parts[1]
 
-        operands = addr(parts[1]) + "0"
+        if target in labels:
+            # Label addresses were calculated with the startup NOP included.
+            target_address = labels[target]
+        else:
+            try:
+                # Preserve numeric-address support, adjusting for startup NOP.
+                target_address = int(target) + 1
+            except ValueError:
+                raise Exception(f"Unknown label '{target}'")
+
+        operands = "0" + addr(target_address)
 
     elif fmt == "RRAM":
-
+        if len(parts) != 3:
+            raise Exception(f"{mnemonic} expects 2 operands")
         r = reg(parts[1])
-
-        operands = r + ram(parts[2])
+        m = ram(parts[2])
+        operands = r + m
 
     elif fmt == "RPORT":
-
+        if len(parts) != 3:
+            raise Exception(f"{mnemonic} expects 2 operands")
         r = reg(parts[1])
         p = port(parts[2])
-
         operands = r + p + "00000"
 
     else:
-        raise Exception("Unknown format")
+        raise Exception(f"Unknown format for {mnemonic}")
 
     return opcode + operands
 
 
 def main():
-
     infile = input("Assembly file: ")
-
     outfile = "machinecode.txt"
 
-    output = []
+    with open(infile, "r") as f:
+        source_lines = f.readlines()
 
-    with open(infile) as f:
+    # Pass 1: collect labels and determine each instruction's address.
+    # Address 0 is reserved for the automatically inserted startup NOP.
+    labels = {}
+    parsed_lines = []
+    instruction_address = 1
 
-        for line_num, line in enumerate(f, start=1):
+    for line_num, line in enumerate(source_lines, start=1):
+        try:
+            label, parts = parse_source_line(line)
 
-            try:
-                code = assemble(line)
+            if label is not None:
+                if label in labels:
+                    raise Exception(f"Duplicate label '.{label}'")
+                labels[label] = instruction_address
 
-                if code is not None:
-                    output.append(code)
+            if parts is not None:
+                parsed_lines.append((line_num, parts))
+                instruction_address += 1
 
-            except Exception as e:
-                print(f"Line {line_num}: {e}")
-                return
+        except Exception as e:
+            print(f"Line {line_num}: {e}")
+            return
+
+    # Pass 2: encode instructions now that all label addresses are known.
+    output = ["0000000000000000"]  # Automatic startup NOP
+
+    for line_num, parts in parsed_lines:
+        try:
+            output.append(assemble_parts(parts, labels, line_num))
+        except Exception as e:
+            print(f"Line {line_num}: {e}")
+            return
 
     with open(outfile, "w") as f:
-
-        for line in output:
-            f.write(line + "\n")
+        for machine_instruction in output:
+            f.write(machine_instruction + "\n")
 
     print(f"Done! Wrote {len(output)} instructions to {outfile}")
+    if labels:
+        print("Labels:")
+        for label, address in labels.items():
+            print(f"  .{label} = {address}")
 
 
 if __name__ == "__main__":
