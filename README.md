@@ -1,37 +1,37 @@
 To upload a program to the CPU, you first need to write it. You can do this in notepad or word, but I actually recommend writing it in a python file. This way you don't need to keep pressing tab a bunch of times. Every line needs to be indented so you can place a label at the start of any line.
 I actually recommend indenting 2 or 3 times to make room for longer labels. Here is a Fibonacci example program.
 
-      CAL.fib
+            CAL.fib
       
-      HLT
+            HLT
       
-.fib  LDI r3 0
+      .fib  LDI r3 0
 
-      LDI r4 9
+            LDI r4 9
       
-      LDI r1 1
+            LDI r1 1
       
-      LDI r2 2
+            LDI r2 2
       
-      ADD r1 r2 r1
+            ADD r1 r2 r1
       
-      ADI r3 1
+            ADI r3 1
       
-      SUB r3 r4 r0
+            SUB r3 r4 r0
       
-      BIZ 13
+            BIZ 13
       
-      ADD r1 r2 r2
+            ADD r1 r2 r2
       
-      ADI r3 1
+            ADI r3 1
       
-      SUB r3 r4 r0
+            SUB r3 r4 r0
       
-      BIZ 13
+            BIZ 13
       
-      JMP 4
+            JMP 4
       
-      RTN
+            RTN
 
 
 Save you're assembly program once you've written it.
