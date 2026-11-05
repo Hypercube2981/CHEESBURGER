@@ -6,7 +6,7 @@ I actually recommend indenting 2 or 3 times to make room for longer labels. Here
       HLT
       
 .fib  LDI r3 0
-
+      
       LDI r4 9
       
       LDI r1 1
